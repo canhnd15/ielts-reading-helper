@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 
-export default function AddPassageModal({ open, topics, onAdd, onAddTopic, onClose }) {
+/**
+ * Dual-mode modal: add a new passage or edit an existing one.
+ * mode='add' → calls onAdd(title, text, topicId)
+ * mode='edit' → calls onEdit(title, text, topicId), initialValues pre-fills fields
+ */
+export default function AddPassageModal({
+  open, topics, mode = 'add', initialValues = null,
+  onAdd, onEdit, onAddTopic, onClose,
+}) {
   const [title, setTitle] = useState('')
   const [text, setText] = useState('')
   const [topicId, setTopicId] = useState('')
@@ -9,13 +17,13 @@ export default function AddPassageModal({ open, topics, onAdd, onAddTopic, onClo
 
   useEffect(() => {
     if (open) {
-      setTitle('')
-      setText('')
-      setTopicId('')
+      setTitle(initialValues?.title ?? '')
+      setText(initialValues?.text ?? '')
+      setTopicId(initialValues?.topicId ?? '')
       setNewTopicName('')
       setTimeout(() => titleRef.current?.focus(), 50)
     }
-  }, [open])
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const isNewTopic = topicId === '__new__'
 
@@ -27,7 +35,8 @@ export default function AddPassageModal({ open, topics, onAdd, onAddTopic, onClo
       resolvedTopicId = newTopicName.trim() ? onAddTopic(newTopicName.trim()) : null
     }
 
-    onAdd(title, text, resolvedTopicId)
+    if (mode === 'edit') onEdit(title, text, resolvedTopicId)
+    else onAdd(title, text, resolvedTopicId)
     onClose()
   }
 
@@ -39,7 +48,9 @@ export default function AddPassageModal({ open, topics, onAdd, onAddTopic, onClo
       onClick={e => e.target === e.currentTarget && onClose()}
     >
       <div className="bg-white rounded-2xl p-6 w-full max-w-xl shadow-2xl">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Add IELTS Passage</h2>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">
+          {mode === 'edit' ? 'Edit Passage' : 'Add IELTS Passage'}
+        </h2>
 
         <input
           ref={titleRef}
@@ -50,7 +61,6 @@ export default function AddPassageModal({ open, topics, onAdd, onAddTopic, onClo
           className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-400"
         />
 
-        {/* Topic */}
         <div className="mt-3 flex gap-2">
           <select
             value={topicId}
@@ -95,7 +105,7 @@ export default function AddPassageModal({ open, topics, onAdd, onAddTopic, onClo
             disabled={!text.trim()}
             className="px-5 py-2 text-sm font-medium bg-blue-700 text-white rounded-lg hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Add Passage
+            {mode === 'edit' ? 'Save Changes' : 'Add Passage'}
           </button>
         </div>
       </div>

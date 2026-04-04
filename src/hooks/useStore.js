@@ -90,6 +90,14 @@ export function useStore() {
     }))
   }, [])
 
+  const editPassage = useCallback((id, title, text, topicId) => {
+    updatePassage(id, () => ({
+      title: title.trim() || 'Untitled Passage',
+      text: text.trim(),
+      topicId: topicId ?? null,
+    }))
+  }, [updatePassage])
+
   const deletePassage = useCallback((id) => {
     setState(s => {
       const passages = s.passages.filter(p => p.id !== id)
@@ -165,13 +173,20 @@ export function useStore() {
     updatePassage(passageId, () => ({ notes }))
   }, [updatePassage])
 
+  // Replace entire state with imported data (after migration/validation)
+  const importData = useCallback((raw) => {
+    setState(migrate(raw))
+  }, [])
+
   return {
     state,
     currentPassage,
     addTopic,
     deleteTopic,
     addPassage,
+    editPassage,
     deletePassage,
+    importData,
     selectPassage,
     setTargetLang,
     addHighlight,
