@@ -23,6 +23,13 @@ const LANGUAGES = [
 ]
 
 const DIFFICULTIES = ['5.0','5.5','6.0','6.5','7.0','7.5','8.0','8.5','9.0']
+const EXAM_DURATIONS = [20, 25, 30]
+
+function formatTimer(seconds) {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
 
 export default function App() {
   const store = useStore()
@@ -37,6 +44,11 @@ export default function App() {
   const [rightCollapsed, setRightCollapsed] = useState(false)
   const [noteInput, setNoteInput]        = useState(null) // { start, end, x, y }
   const [noteView, setNoteView]          = useState(null) // { annId, note, x, y }
+  const [showQuestions, setShowQuestions]  = useState(false)
+  const [examMode, setExamMode]          = useState(false)
+  const [examDuration, setExamDuration]  = useState(20) // minutes
+  const [examTimeLeft, setExamTimeLeft]  = useState(null) // seconds
+  const [examRunning, setExamRunning]    = useState(false)
   const importRef = useRef(null)
 
   const { currentPassage, state } = store
@@ -58,6 +70,31 @@ export default function App() {
 
   // Cleanup TTS on unmount
   useEffect(() => () => window.speechSynthesis?.cancel(), [])
+
+  // ── Exam timer ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!examRunning || examTimeLeft === null) return
+    if (examTimeLeft <= 0) {
+      setExamRunning(false)
+      alert("Time's up!")
+      return
+    }
+    const id = setInterval(() => setExamTimeLeft(t => t - 1), 1000)
+    return () => clearInterval(id)
+  }, [examRunning, examTimeLeft])
+
+  const startExam = useCallback(() => {
+    setExamMode(true)
+    setExamTimeLeft(examDuration * 60)
+    setExamRunning(true)
+  }, [examDuration])
+
+  const stopExam = useCallback(() => {
+    if (!confirm('Exit exam mode? Timer will reset.')) return
+    setExamMode(false)
+    setExamRunning(false)
+    setExamTimeLeft(null)
+  }, [])
 
   // ── Reading interactions ────────────────────────────────────
   const handleWordClick = useCallback((word, x, y, hlId) => {
@@ -240,16 +277,19 @@ export default function App() {
       {/* Body */}
       <div className="flex flex-1 overflow-hidden">
 
-        <PassageSidebar
-          topics={state.topics}
-          passages={state.passages}
-          currentId={state.currentPassageId}
-          onSelect={store.selectPassage}
-          onAdd={() => setAddModalOpen(true)}
-          onDelete={handleDeletePassage}
-        />
+        {/* Sidebar — hidden in exam mode */}
+        {!examMode && (
+          <PassageSidebar
+            topics={state.topics}
+            passages={state.passages}
+            currentId={state.currentPassageId}
+            onSelect={store.selectPassage}
+            onAdd={() => setAddModalOpen(true)}
+            onDelete={handleDeletePassage}
+          />
+        )}
 
-        {/* Reading area */}
+        {/* Main content area */}
         <main className="flex-1 flex flex-col overflow-hidden">
           {currentPassage ? (
             <>
@@ -308,6 +348,26 @@ export default function App() {
 
                   <div className="w-px h-4 bg-gray-200 mx-0.5" />
 
+                  {/* Mode toggle */}
+                  {!examMode ? (
+                    <button
+                      onClick={startExam}
+                      className="text-xs px-2 py-1 border border-amber-300 rounded text-amber-600 hover:bg-amber-50 hover:border-amber-400 transition-colors"
+                      title="Start exam mode with timer"
+                    >
+                      Exam
+                    </button>
+                  ) : (
+                    <button
+                      onClick={stopExam}
+                      className="text-xs px-2 py-1 border border-red-300 rounded text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      Exit Exam
+                    </button>
+                  )}
+
+                  <div className="w-px h-4 bg-gray-200 mx-0.5" />
+
                   <button
                     onClick={() => setEditModalOpen(true)}
                     className="text-xs px-2 py-1 border border-gray-200 rounded text-gray-500 hover:text-blue-600 hover:bg-gray-50"
@@ -323,37 +383,134 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Reading progress bar */}
-              <div className="h-0.5 bg-gray-100 flex-shrink-0">
-                <div
-                  className="h-full bg-blue-500 transition-all duration-150"
-                  style={{ width: `${readProgress}%` }}
-                />
-              </div>
+              {/* Exam timer bar */}
+              {examMode && examTimeLeft !== null && (
+                <div className="flex items-center gap-3 px-4 py-2 bg-amber-50 border-b border-amber-200 flex-shrink-0">
+                  <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Exam</span>
+                  <span className={`text-lg font-mono font-bold tabular-nums ${examTimeLeft <= 60 ? 'text-red-600 animate-pulse' : examTimeLeft <= 300 ? 'text-red-500' : 'text-amber-700'}`}>
+                    {formatTimer(examTimeLeft)}
+                  </span>
+                  <button
+                    onClick={() => setExamRunning(r => !r)}
+                    className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${
+                      examRunning
+                        ? 'bg-amber-200 text-amber-800 hover:bg-amber-300'
+                        : 'bg-green-200 text-green-800 hover:bg-green-300'
+                    }`}
+                  >
+                    {examRunning ? '⏸ Pause' : '▶ Resume'}
+                  </button>
+                  <div className="flex items-center gap-1 ml-auto">
+                    <span className="text-xs text-amber-600">Duration:</span>
+                    {EXAM_DURATIONS.map(d => (
+                      <button
+                        key={d}
+                        onClick={() => {
+                          setExamDuration(d)
+                          setExamTimeLeft(d * 60)
+                          setExamRunning(true)
+                        }}
+                        className={`text-xs px-2 py-0.5 rounded transition-colors ${
+                          examDuration === d
+                            ? 'bg-amber-600 text-white'
+                            : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                        }`}
+                      >
+                        {d}m
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-              {/* Passage content */}
-              <div
-                className="flex-1 overflow-y-auto px-10 py-8 bg-white"
-                onScroll={handleScroll}
-              >
-                <div
-                  className="passage-text max-w-2xl mx-auto text-gray-800"
-                  style={{ fontSize }}
-                >
-                  <PassageText
-                    passage={currentPassage}
-                    onWordClick={handleWordClick}
-                    onTextSelect={handleTextSelect}
-                    onAnnotationClick={handleAnnotationClick}
+              {/* Reading progress bar (reader mode only) */}
+              {!examMode && (
+                <div className="h-0.5 bg-gray-100 flex-shrink-0">
+                  <div
+                    className="h-full bg-blue-500 transition-all duration-150"
+                    style={{ width: `${readProgress}%` }}
                   />
                 </div>
+              )}
 
-                <QuestionsSection
-                  passage={currentPassage}
-                  onUpdate={store.updateQuestions}
-                  fontSize={fontSize}
-                />
-              </div>
+              {/* Content area — layout differs by mode */}
+              {examMode ? (
+                /* ── Exam mode: split passage (left) | questions (right) ── */
+                <div className="flex-1 flex overflow-hidden">
+                  {/* Left: passage */}
+                  <div className="flex-1 overflow-y-auto px-8 py-6 border-r border-gray-200">
+                    <div
+                      className="passage-text max-w-none text-gray-800"
+                      style={{ fontSize }}
+                    >
+                      <PassageText
+                        passage={currentPassage}
+                        onWordClick={handleWordClick}
+                        onTextSelect={handleTextSelect}
+                        onAnnotationClick={handleAnnotationClick}
+                        onUpdateParagraphNote={store.updateParagraphNote}
+                        showTranslations={false}
+                      />
+                    </div>
+                  </div>
+                  {/* Right: questions */}
+                  <div className="flex-1 overflow-y-auto px-8 py-6 bg-gray-50">
+                    <QuestionsSection
+                      passage={currentPassage}
+                      onUpdate={store.updateQuestions}
+                      fontSize={fontSize}
+                      readOnly
+                    />
+                  </div>
+                </div>
+              ) : (
+                /* ── Reader mode: passage + optional questions editor ── */
+                <div
+                  className="flex-1 overflow-y-auto px-10 py-8 bg-white"
+                  onScroll={handleScroll}
+                >
+                  <div
+                    className="passage-text max-w-2xl mx-auto text-gray-800"
+                    style={{ fontSize }}
+                  >
+                    <PassageText
+                      passage={currentPassage}
+                      onWordClick={handleWordClick}
+                      onTextSelect={handleTextSelect}
+                      onAnnotationClick={handleAnnotationClick}
+                      onUpdateParagraphNote={store.updateParagraphNote}
+                    />
+                  </div>
+
+                  {/* Edit Questions toggle */}
+                  {!showQuestions ? (
+                    <div className="max-w-2xl mx-auto mt-8 mb-4">
+                      <button
+                        onClick={() => setShowQuestions(true)}
+                        className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-400 hover:text-blue-600 hover:border-blue-300 transition-colors"
+                      >
+                        Edit Questions
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <QuestionsSection
+                        passage={currentPassage}
+                        onUpdate={store.updateQuestions}
+                        fontSize={fontSize}
+                      />
+                      <div className="max-w-2xl mx-auto mb-8">
+                        <button
+                          onClick={() => setShowQuestions(false)}
+                          className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                          Hide Questions
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-white">
@@ -373,29 +530,31 @@ export default function App() {
           )}
         </main>
 
-        {/* Right panel with collapse toggle */}
-        <div className={`flex flex-col flex-shrink-0 border-l border-gray-200 transition-all duration-200 ${rightCollapsed ? 'w-8' : 'w-80'}`}>
-          {/* Toggle button */}
-          <button
-            onClick={() => setRightCollapsed(v => !v)}
-            className="flex items-center justify-center h-8 flex-shrink-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-            title={rightCollapsed ? 'Expand panel' : 'Collapse panel'}
-          >
-            {rightCollapsed ? '‹' : '›'}
-          </button>
-          {!rightCollapsed && (
-            <div className="flex-1 overflow-hidden flex flex-col">
-              <RightPanel
-                passage={currentPassage}
-                onUpdateNotes={store.updateNotes}
-                onRemoveVocab={store.removeVocabWord}
-                onRemoveHighlight={handleRemoveHighlight}
-                onAddSentence={store.addSentence}
-                onStartLearning={() => setLearningOpen(true)}
-              />
-            </div>
-          )}
-        </div>
+        {/* Right panel — hidden in exam mode */}
+        {!examMode && (
+          <div className={`flex flex-col flex-shrink-0 border-l border-gray-200 transition-all duration-200 ${rightCollapsed ? 'w-8' : 'w-80'}`}>
+            {/* Toggle button */}
+            <button
+              onClick={() => setRightCollapsed(v => !v)}
+              className="flex items-center justify-center h-8 flex-shrink-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              title={rightCollapsed ? 'Expand panel' : 'Collapse panel'}
+            >
+              {rightCollapsed ? '‹' : '›'}
+            </button>
+            {!rightCollapsed && (
+              <div className="flex-1 overflow-hidden flex flex-col">
+                <RightPanel
+                  passage={currentPassage}
+                  onUpdateNotes={store.updateNotes}
+                  onRemoveVocab={store.removeVocabWord}
+                  onRemoveHighlight={handleRemoveHighlight}
+                  onAddSentence={store.addSentence}
+                  onStartLearning={() => setLearningOpen(true)}
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Overlays */}
