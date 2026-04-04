@@ -65,7 +65,11 @@ function getOffset(container, node, offset) {
   const range = document.createRange()
   range.selectNodeContents(container)
   range.setEnd(node, offset)
-  return range.toString().length
+  // Clone and strip injected UI elements (ann-trigger icons) before counting
+  // so the offset matches passage.text which doesn't contain those characters.
+  const fragment = range.cloneContents()
+  fragment.querySelectorAll('.ann-trigger').forEach(el => el.remove())
+  return fragment.textContent.length
 }
 
 function escHtml(str) {
