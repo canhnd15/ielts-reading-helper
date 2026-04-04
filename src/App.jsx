@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useStore } from './hooks/useStore'
 import { useTranslation } from './hooks/useTranslation'
-import { getDueCount } from './utils/sm2'
 import PassageSidebar from './components/PassageSidebar'
 import PassageText from './components/PassageText'
 import SelectionToolbar from './components/SelectionToolbar'
@@ -34,7 +33,6 @@ export default function App() {
   const [dashboardOpen, setDashboardOpen] = useState(false)
   const [speaking, setSpeaking]         = useState(false)
   const [readProgress, setReadProgress] = useState(0)
-  const [mobileView, setMobileView]     = useState('sidebar')
   const importRef = useRef(null)
 
   const { currentPassage, state } = store
@@ -86,11 +84,6 @@ export default function App() {
     if (!currentPassage) return
     store.removeHighlight(currentPassage.id, hlId)
   }, [currentPassage, store])
-
-  const handleSelectPassage = useCallback((id) => {
-    store.selectPassage(id)
-    setMobileView('reading')
-  }, [store])
 
   const handleDeletePassage = useCallback((id) => {
     if (confirm('Delete this passage?')) store.deletePassage(id)
@@ -163,8 +156,8 @@ export default function App() {
     <div className="h-screen flex flex-col overflow-hidden bg-white">
 
       {/* Header */}
-      <header className="flex items-center gap-2 px-3 py-2 bg-blue-900 text-white flex-shrink-0">
-        <h1 className="text-sm font-semibold tracking-wide whitespace-nowrap">IELTS Reader</h1>
+      <header className="flex items-center gap-3 px-4 py-2 bg-blue-900 text-white flex-shrink-0">
+        <h1 className="text-sm font-semibold tracking-wide whitespace-nowrap">IELTS Reading Helper</h1>
 
         {/* Streak */}
         {streak?.current > 0 && (
@@ -173,7 +166,7 @@ export default function App() {
           </div>
         )}
 
-        <div className="flex items-center gap-1.5 ml-auto">
+        <div className="flex items-center gap-2 ml-auto flex-wrap justify-end">
           {/* Translate to */}
           <span className="text-xs text-blue-300 hidden sm:inline">Translate:</span>
           <select
@@ -184,30 +177,34 @@ export default function App() {
             {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
           </select>
 
+          <div className="w-px h-4 bg-blue-700" />
+
           {/* Dashboard */}
           <button
             onClick={() => setDashboardOpen(true)}
-            className="text-xs px-2 py-1 border border-blue-700 text-blue-300 rounded hover:text-white hover:border-blue-500 transition-colors"
+            className="text-xs px-2.5 py-1 border border-blue-700 text-blue-300 rounded hover:text-white hover:border-blue-500 transition-colors"
             title="Progress dashboard"
           >
-            📊 <span className="hidden sm:inline">Stats</span>
+            📊 Stats
           </button>
 
           {/* Dark mode */}
           <button
             onClick={store.toggleDarkMode}
-            className="hidden sm:inline-flex text-xs px-2 py-1 border border-blue-700 text-blue-300 rounded hover:text-white hover:border-blue-500 transition-colors"
+            className="text-xs px-2.5 py-1 border border-blue-700 text-blue-300 rounded hover:text-white hover:border-blue-500 transition-colors"
             title="Toggle dark mode"
           >
-            {darkMode ? '☀' : '☾'}
+            {darkMode ? '☀ Light' : '☾ Dark'}
           </button>
 
+          <div className="w-px h-4 bg-blue-700" />
+
           {/* Export / Import */}
-          <button onClick={handleExport} className="hidden sm:inline-flex text-xs px-2 py-1 border border-blue-700 text-blue-300 rounded hover:text-white hover:border-blue-500 transition-colors">
-            ↓
+          <button onClick={handleExport} className="text-xs px-2.5 py-1 border border-blue-700 text-blue-300 rounded hover:text-white hover:border-blue-500 transition-colors">
+            ↓ Export
           </button>
-          <button onClick={() => importRef.current?.click()} className="hidden sm:inline-flex text-xs px-2 py-1 border border-blue-700 text-blue-300 rounded hover:text-white hover:border-blue-500 transition-colors">
-            ↑
+          <button onClick={() => importRef.current?.click()} className="text-xs px-2.5 py-1 border border-blue-700 text-blue-300 rounded hover:text-white hover:border-blue-500 transition-colors">
+            ↑ Import
           </button>
           <input ref={importRef} type="file" accept=".json" onChange={handleImportFile} className="hidden" />
         </div>
@@ -216,27 +213,24 @@ export default function App() {
       {/* Body */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* Sidebar: full-screen on mobile, fixed-width on desktop */}
-        <div className={`${mobileView === 'sidebar' ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-auto flex-shrink-0`}>
-          <PassageSidebar
-            topics={state.topics}
-            passages={state.passages}
-            currentId={state.currentPassageId}
-            onSelect={handleSelectPassage}
-            onAdd={() => { setAddModalOpen(true); setMobileView('reading') }}
-            onDelete={handleDeletePassage}
-          />
-        </div>
+        <PassageSidebar
+          topics={state.topics}
+          passages={state.passages}
+          currentId={state.currentPassageId}
+          onSelect={store.selectPassage}
+          onAdd={() => setAddModalOpen(true)}
+          onDelete={handleDeletePassage}
+        />
 
         {/* Reading area */}
-        <main className={`${mobileView === 'reading' ? 'flex' : 'hidden'} md:flex flex-1 flex-col overflow-hidden`}>
+        <main className="flex-1 flex flex-col overflow-hidden">
           {currentPassage ? (
             <>
               {/* Passage toolbar */}
-              <div className="flex flex-col border-b border-gray-100 bg-white flex-shrink-0">
-                {/* Row 1: title + topic + difficulty */}
-                <div className="flex items-center gap-2 px-3 pt-2 pb-1 min-w-0">
-                  <span className="font-semibold text-sm text-gray-700 truncate flex-1 min-w-0">
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 bg-white flex-shrink-0">
+                {/* Left: title + topic + difficulty */}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="font-semibold text-sm text-gray-700 truncate">
                     {currentPassage.title}
                   </span>
                   {topicName && (
@@ -255,8 +249,8 @@ export default function App() {
                   </select>
                 </div>
 
-                {/* Row 2: controls */}
-                <div className="flex items-center gap-1.5 px-3 pb-2 flex-wrap">
+                {/* Right: controls */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
                   {/* Font size */}
                   <button
                     onClick={() => store.setFontSize(Math.max(13, fontSize - 1))}
@@ -312,7 +306,7 @@ export default function App() {
 
               {/* Passage content */}
               <div
-                className="flex-1 overflow-y-auto px-4 py-6 sm:px-10 sm:py-8 bg-white"
+                className="flex-1 overflow-y-auto px-10 py-8 bg-white"
                 onScroll={handleScroll}
               >
                 <div
@@ -345,56 +339,15 @@ export default function App() {
           )}
         </main>
 
-        {/* Right panel: full-screen on mobile, fixed-width on desktop */}
-        <div className={`${mobileView === 'notes' ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-auto flex-shrink-0`}>
-          <RightPanel
-            passage={currentPassage}
-            onUpdateNotes={store.updateNotes}
-            onRemoveVocab={store.removeVocabWord}
-            onRemoveHighlight={handleRemoveHighlight}
-            onAddSentence={store.addSentence}
-            onStartLearning={() => setLearningOpen(true)}
-          />
-        </div>
+        <RightPanel
+          passage={currentPassage}
+          onUpdateNotes={store.updateNotes}
+          onRemoveVocab={store.removeVocabWord}
+          onRemoveHighlight={handleRemoveHighlight}
+          onAddSentence={store.addSentence}
+          onStartLearning={() => setLearningOpen(true)}
+        />
       </div>
-
-      {/* Mobile bottom navigation */}
-      <nav className="md:hidden flex border-t border-gray-200 bg-white flex-shrink-0">
-        <button
-          onClick={() => setMobileView('sidebar')}
-          className={`flex-1 py-2.5 flex flex-col items-center gap-0.5 text-xs transition-colors ${
-            mobileView === 'sidebar' ? 'text-blue-600' : 'text-gray-500'
-          }`}
-        >
-          <span className="text-base leading-none">📚</span>
-          <span>Passages</span>
-        </button>
-        <button
-          onClick={() => setMobileView('reading')}
-          className={`flex-1 py-2.5 flex flex-col items-center gap-0.5 text-xs transition-colors ${
-            mobileView === 'reading' ? 'text-blue-600' : 'text-gray-500'
-          }`}
-        >
-          <span className="text-base leading-none">📖</span>
-          <span>Read</span>
-        </button>
-        <button
-          onClick={() => setMobileView('notes')}
-          className={`flex-1 py-2.5 flex flex-col items-center gap-0.5 text-xs transition-colors ${
-            mobileView === 'notes' ? 'text-blue-600' : 'text-gray-500'
-          }`}
-        >
-          <span className="relative text-base leading-none">
-            📝
-            {currentPassage && getDueCount(currentPassage) > 0 && (
-              <span className="absolute -top-1 -right-2 bg-amber-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center leading-none">
-                {getDueCount(currentPassage)}
-              </span>
-            )}
-          </span>
-          <span>Notes</span>
-        </button>
-      </nav>
 
       {/* Overlays */}
       <SelectionToolbar

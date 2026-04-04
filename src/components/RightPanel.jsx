@@ -16,7 +16,7 @@ export default function RightPanel({
   const dueCount = passage ? getDueCount(passage) : 0
 
   return (
-    <div className="w-full md:w-80 flex-shrink-0 bg-slate-50 border-l border-gray-200 flex flex-col">
+    <div className="w-80 flex-shrink-0 bg-slate-50 border-l border-gray-200 flex flex-col">
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200">

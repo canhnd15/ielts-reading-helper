@@ -45,7 +45,7 @@ export default function PassageSidebar({ topics, passages, currentId, onSelect, 
   const toggle = (key) => setCollapsed(prev => ({ ...prev, [key]: !prev[key] }))
 
   return (
-    <div className="w-full md:w-56 bg-slate-800 text-white flex flex-col flex-shrink-0 overflow-hidden">
+    <div className="w-56 bg-slate-800 text-white flex flex-col flex-shrink-0 overflow-hidden">
 
       {/* Search */}
       <div className="p-2 pt-3">
