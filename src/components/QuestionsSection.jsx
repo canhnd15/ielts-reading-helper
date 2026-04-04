@@ -36,7 +36,7 @@ function MarkdownPreview({ content, fontSize }) {
   )
 }
 
-export default function QuestionsSection({ passage, onUpdate, fontSize }) {
+export default function QuestionsSection({ passage, onUpdate, fontSize, readOnly = false }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const textareaRef = useRef(null)
@@ -67,28 +67,30 @@ export default function QuestionsSection({ passage, onUpdate, fontSize }) {
       {/* Section header */}
       <div className="flex items-center justify-between mb-3 max-w-2xl">
         <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Questions</h2>
-        {!editing ? (
-          <button
-            onClick={startEdit}
-            className="text-xs px-2.5 py-1 border border-gray-200 rounded text-gray-500 hover:text-blue-600 hover:bg-gray-50 transition-colors"
-          >
-            Edit
-          </button>
-        ) : (
-          <div className="flex gap-1.5">
+        {!readOnly && (
+          !editing ? (
             <button
-              onClick={cancel}
-              className="text-xs px-2.5 py-1 border border-gray-200 rounded text-gray-500 hover:bg-gray-50"
+              onClick={startEdit}
+              className="text-xs px-2.5 py-1 border border-gray-200 rounded text-gray-500 hover:text-blue-600 hover:bg-gray-50 transition-colors"
             >
-              Cancel
+              Edit
             </button>
-            <button
-              onClick={save}
-              className="text-xs px-2.5 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Save
-            </button>
-          </div>
+          ) : (
+            <div className="flex gap-1.5">
+              <button
+                onClick={cancel}
+                className="text-xs px-2.5 py-1 border border-gray-200 rounded text-gray-500 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={save}
+                className="text-xs px-2.5 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Save
+              </button>
+            </div>
+          )
         )}
       </div>
 
@@ -131,6 +133,8 @@ export default function QuestionsSection({ passage, onUpdate, fontSize }) {
         <div className="max-w-2xl">
           <MarkdownPreview content={content} fontSize={fontSize} />
         </div>
+      ) : readOnly ? (
+        <p className="text-sm text-gray-400 text-center py-8">No questions added for this passage.</p>
       ) : (
         <button
           onClick={startEdit}
