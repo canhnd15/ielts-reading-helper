@@ -45,7 +45,7 @@ export default function PassageText({ passage, onWordClick, onTextSelect }) {
   return (
     <div
       ref={containerRef}
-      className="passage-text max-w-2xl mx-auto"
+      className="passage-text"
       onMouseUp={handleMouseUp}
       dangerouslySetInnerHTML={{ __html: rendered }}
     />

@@ -83,7 +83,7 @@ function NotesTab({ passage, onUpdateNotes }) {
   return (
     <div className="p-3 h-full flex flex-col">
       <textarea
-        className="flex-1 w-full min-h-64 p-3 text-sm border border-gray-200 rounded-lg resize-none outline-none focus:border-blue-400 bg-white leading-relaxed"
+        className="flex-1 w-full min-h-64 p-3 text-sm border border-gray-200 rounded-lg resize-none outline-none focus:border-blue-400 bg-white text-gray-700 leading-relaxed"
         placeholder={passage ? 'Take notes about this passage…' : 'Select a passage to take notes.'}
         disabled={!passage}
         value={passage?.notes ?? ''}
@@ -141,9 +141,10 @@ function VocabItem({ item, passageId, onRemove, onAddSentence }) {
           )}
         </button>
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {/* Sentence progress */}
           <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
-            mastered ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+            mastered
+              ? 'bg-green-100 text-green-700'
+              : 'bg-gray-100 text-gray-500'
           }`}>
             {sentences.length}/3
           </span>
@@ -192,7 +193,7 @@ function VocabItem({ item, passageId, onRemove, onAddSentence }) {
                     }
                   }}
                   placeholder={`Sentence with "${item.word}"…`}
-                  className="flex-1 text-xs px-2 py-1.5 border border-gray-200 rounded-lg outline-none focus:border-blue-400"
+                  className="flex-1 text-xs px-2 py-1.5 border border-gray-200 rounded-lg outline-none focus:border-blue-400 bg-white text-gray-700"
                 />
                 <button
                   onClick={() => {

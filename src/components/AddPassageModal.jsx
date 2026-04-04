@@ -58,7 +58,7 @@ export default function AddPassageModal({
           placeholder="Title (e.g. Reading Test 1 – Passage 1)"
           value={title}
           onChange={e => setTitle(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-400"
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-400 bg-white text-gray-800"
         />
 
         <div className="mt-3 flex gap-2">
@@ -81,7 +81,7 @@ export default function AddPassageModal({
               value={newTopicName}
               onChange={e => setNewTopicName(e.target.value)}
               autoFocus
-              className="flex-1 px-3 py-2 border border-blue-300 rounded-lg text-sm outline-none focus:border-blue-400"
+              className="flex-1 px-3 py-2 border border-blue-300 rounded-lg text-sm outline-none focus:border-blue-400 bg-white text-gray-800"
             />
           )}
         </div>

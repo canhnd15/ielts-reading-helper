@@ -2,20 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html, body, #root {
-  height: 100%;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; }
 
 .passage-text {
   white-space: pre-wrap;
   line-height: 1.9;
-  font-size: 1.05rem;
 }
 
 .word-token {
@@ -23,10 +15,7 @@ html, body, #root {
   border-radius: 2px;
   transition: background 0.1s;
 }
-
-.word-token:hover {
-  background-color: #dbeafe;
-}
+.word-token:hover { background-color: #dbeafe; }
 
 .hl-yellow  { background: #fef08a; border-radius: 2px; }
 .hl-green   { background: #bbf7d0; border-radius: 2px; }

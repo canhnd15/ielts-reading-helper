@@ -4,14 +4,47 @@ const STORAGE_KEY = 'ielts_reader_v1'
 
 const SR_DEFAULTS = { interval: 1, repetitions: 0, easeFactor: 2.5, dueDate: null }
 
-// Migrate old data to new shape
+function todayStr() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function computeStreak(streak, today) {
+  if (!streak.lastDate) return { current: 1, lastDate: today }
+  if (streak.lastDate === today) return streak
+  const diff = Math.round(
+    (new Date(today) - new Date(streak.lastDate)) / 86400000
+  )
+  return diff === 1
+    ? { current: streak.current + 1, lastDate: today }
+    : { current: 1, lastDate: today }
+}
+
+function recordReviewInSettings(settings) {
+  const today = todayStr()
+  const history = settings.reviewHistory ?? []
+  const existing = history.find(r => r.date === today)
+  const reviewHistory = existing
+    ? history.map(r => r.date === today ? { ...r, count: r.count + 1 } : r)
+    : [...history, { date: today, count: 1 }]
+  const streak = computeStreak(settings.streak ?? { current: 0, lastDate: null }, today)
+  return { ...settings, reviewHistory, streak }
+}
+
 function migrate(raw) {
   return {
     topics: raw.topics ?? [],
     currentPassageId: raw.currentPassageId ?? null,
-    settings: { targetLang: 'vi', ...(raw.settings ?? {}) },
+    settings: {
+      targetLang: 'vi',
+      fontSize: 17,
+      streak: { current: 0, lastDate: null },
+      reviewHistory: [],
+      ...(raw.settings ?? {}),
+    },
     passages: (raw.passages ?? []).map(p => ({
       topicId: null,
+      difficulty: null,
+      lastReadAt: null,
       ...p,
       vocabulary: (p.vocabulary ?? []).map(v => ({
         sentences: [],
@@ -38,7 +71,12 @@ const defaultState = {
   topics: [],
   passages: [],
   currentPassageId: null,
-  settings: { targetLang: 'vi' },
+  settings: {
+    targetLang: 'vi',
+    fontSize: 17,
+    streak: { current: 0, lastDate: null },
+    reviewHistory: [],
+  },
 }
 
 export function useStore() {
@@ -57,7 +95,11 @@ export function useStore() {
     }))
   }, [])
 
-  // ── Topics ─────────────────────────────────────────��───────
+  // ── Settings ───────────────────────────────────────────────
+  const setTargetLang = useCallback((v) => setState(s => ({ ...s, settings: { ...s.settings, targetLang: v } })), [])
+  const setFontSize   = useCallback((v) => setState(s => ({ ...s, settings: { ...s.settings, fontSize: v } })), [])
+
+  // ── Topics ─────────────────────────────────────────────────
   const addTopic = useCallback((name) => {
     const id = Date.now().toString()
     setState(s => ({ ...s, topics: [...s.topics, { id, name: name.trim() }] }))
@@ -82,6 +124,8 @@ export function useStore() {
         title: title.trim() || 'Untitled Passage',
         text: text.trim(),
         topicId,
+        difficulty: null,
+        lastReadAt: null,
         notes: '',
         highlights: [],
         vocabulary: [],
@@ -109,11 +153,21 @@ export function useStore() {
   }, [])
 
   const selectPassage = useCallback((id) => {
-    setState(s => ({ ...s, currentPassageId: id }))
+    setState(s => ({
+      ...s,
+      currentPassageId: id,
+      passages: s.passages.map(p =>
+        p.id === id ? { ...p, lastReadAt: new Date().toISOString() } : p
+      ),
+    }))
   }, [])
 
-  const setTargetLang = useCallback((lang) => {
-    setState(s => ({ ...s, settings: { ...s.settings, targetLang: lang } }))
+  const setDifficulty = useCallback((passageId, difficulty) => {
+    updatePassage(passageId, () => ({ difficulty }))
+  }, [updatePassage])
+
+  const importData = useCallback((raw) => {
+    setState(migrate(raw))
   }, [])
 
   // ── Highlights ─────────────────────────────────────────────
@@ -130,10 +184,16 @@ export function useStore() {
   }, [updatePassage])
 
   const reviewHighlight = useCallback((passageId, hlId, srUpdate) => {
-    updatePassage(passageId, p => ({
-      highlights: p.highlights.map(h => h.id === hlId ? { ...h, ...srUpdate } : h),
+    setState(s => ({
+      ...s,
+      settings: recordReviewInSettings(s.settings),
+      passages: s.passages.map(p =>
+        p.id === passageId
+          ? { ...p, highlights: p.highlights.map(h => h.id === hlId ? { ...h, ...srUpdate } : h) }
+          : p
+      ),
     }))
-  }, [updatePassage])
+  }, [])
 
   // ── Vocabulary ─────────────────────────────────────────────
   const saveVocabWord = useCallback((passageId, word, data) => {
@@ -154,10 +214,16 @@ export function useStore() {
   }, [updatePassage])
 
   const reviewVocab = useCallback((passageId, vocabId, srUpdate) => {
-    updatePassage(passageId, p => ({
-      vocabulary: p.vocabulary.map(v => v.id === vocabId ? { ...v, ...srUpdate } : v),
+    setState(s => ({
+      ...s,
+      settings: recordReviewInSettings(s.settings),
+      passages: s.passages.map(p =>
+        p.id === passageId
+          ? { ...p, vocabulary: p.vocabulary.map(v => v.id === vocabId ? { ...v, ...srUpdate } : v) }
+          : p
+      ),
     }))
-  }, [updatePassage])
+  }, [])
 
   const addSentence = useCallback((passageId, vocabId, sentence) => {
     updatePassage(passageId, p => ({
@@ -173,22 +239,19 @@ export function useStore() {
     updatePassage(passageId, () => ({ notes }))
   }, [updatePassage])
 
-  // Replace entire state with imported data (after migration/validation)
-  const importData = useCallback((raw) => {
-    setState(migrate(raw))
-  }, [])
-
   return {
     state,
     currentPassage,
+    setTargetLang,
+    setFontSize,
     addTopic,
     deleteTopic,
     addPassage,
     editPassage,
     deletePassage,
-    importData,
     selectPassage,
-    setTargetLang,
+    setDifficulty,
+    importData,
     addHighlight,
     removeHighlight,
     reviewHighlight,
