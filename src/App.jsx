@@ -9,7 +9,7 @@ import RightPanel from './components/RightPanel'
 import AddPassageModal from './components/AddPassageModal'
 import LearningMode from './components/LearningMode'
 import Dashboard from './components/Dashboard'
-import PassageQuestions from './components/PassageQuestions'
+import QuestionsSection from './components/QuestionsSection'
 
 const LANGUAGES = [
   { code: 'vi', label: 'Vietnamese' },
@@ -90,8 +90,8 @@ export default function App() {
     if (confirm('Delete this passage?')) store.deletePassage(id)
   }, [store])
 
-  const handleEditPassage = useCallback((title, text, topicId) => {
-    if (currentPassage) store.editPassage(currentPassage.id, title, text, topicId)
+  const handleEditPassage = useCallback((title, text, topicId, questions) => {
+    if (currentPassage) store.editPassage(currentPassage.id, title, text, topicId, questions)
   }, [currentPassage, store])
 
   // ── Text-to-speech ──────────────────────────────────────────
@@ -321,11 +321,10 @@ export default function App() {
                   />
                 </div>
 
-                <PassageQuestions
+                <QuestionsSection
                   passage={currentPassage}
-                  onAdd={store.addQuestion}
-                  onRemove={store.removeQuestion}
-                  onUpdate={store.updateQuestion}
+                  onUpdate={store.updateQuestions}
+                  fontSize={fontSize}
                 />
               </div>
             </>
@@ -388,6 +387,7 @@ export default function App() {
           title: currentPassage.title,
           text: currentPassage.text,
           topicId: currentPassage.topicId ?? '',
+          questions: currentPassage.questions ?? '',
         } : null}
         onEdit={handleEditPassage}
         onAddTopic={store.addTopic}

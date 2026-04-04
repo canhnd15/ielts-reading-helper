@@ -55,7 +55,7 @@ function migrate(raw) {
         ...SR_DEFAULTS,
         ...h,
       })),
-      questions: (p.questions ?? []),
+      questions: typeof p.questions === 'string' ? p.questions : '',
     })),
   }
 }
@@ -116,7 +116,7 @@ export function useStore() {
   }, [])
 
   // ── Passages ───────────────────────────────────────────────
-  const addPassage = useCallback((title, text, topicId = null) => {
+  const addPassage = useCallback((title, text, topicId = null, questions = '') => {
     const id = Date.now().toString()
     setState(s => ({
       ...s,
@@ -128,19 +128,20 @@ export function useStore() {
         difficulty: null,
         lastReadAt: null,
         notes: '',
+        questions: questions.trim(),
         highlights: [],
         vocabulary: [],
-        questions: [],
       }],
       currentPassageId: id,
     }))
   }, [])
 
-  const editPassage = useCallback((id, title, text, topicId) => {
+  const editPassage = useCallback((id, title, text, topicId, questions = '') => {
     updatePassage(id, () => ({
       title: title.trim() || 'Untitled Passage',
       text: text.trim(),
       topicId: topicId ?? null,
+      questions: questions.trim(),
     }))
   }, [updatePassage])
 
@@ -242,26 +243,8 @@ export function useStore() {
   }, [updatePassage])
 
   // ── Questions ──────────────────────────────────────────────
-  const addQuestion = useCallback((passageId, question, answer) => {
-    updatePassage(passageId, p => ({
-      questions: [...(p.questions ?? []), {
-        id: Date.now().toString(), question: question.trim(), answer: answer.trim(),
-      }],
-    }))
-  }, [updatePassage])
-
-  const removeQuestion = useCallback((passageId, questionId) => {
-    updatePassage(passageId, p => ({
-      questions: p.questions.filter(q => q.id !== questionId),
-    }))
-  }, [updatePassage])
-
-  const updateQuestion = useCallback((passageId, questionId, question, answer) => {
-    updatePassage(passageId, p => ({
-      questions: p.questions.map(q =>
-        q.id === questionId ? { ...q, question: question.trim(), answer: answer.trim() } : q
-      ),
-    }))
+  const updateQuestions = useCallback((passageId, questions) => {
+    updatePassage(passageId, () => ({ questions }))
   }, [updatePassage])
 
   return {
@@ -285,8 +268,6 @@ export function useStore() {
     reviewVocab,
     addSentence,
     updateNotes,
-    addQuestion,
-    removeQuestion,
-    updateQuestion,
+    updateQuestions,
   }
 }
