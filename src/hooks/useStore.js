@@ -56,6 +56,7 @@ function migrate(raw) {
         ...h,
       })),
       questions: typeof p.questions === 'string' ? p.questions : '',
+      annotations: (p.annotations ?? []),
     })),
   }
 }
@@ -130,6 +131,7 @@ export function useStore() {
         notes: '',
         questions: questions.trim(),
         highlights: [],
+        annotations: [],
         vocabulary: [],
       }],
       currentPassageId: id,
@@ -242,6 +244,19 @@ export function useStore() {
     updatePassage(passageId, () => ({ notes }))
   }, [updatePassage])
 
+  // ── Annotations ───────────────────────────────────────────
+  const addAnnotation = useCallback((passageId, start, end, note) => {
+    updatePassage(passageId, p => ({
+      annotations: [...(p.annotations ?? []), { id: Date.now().toString(), start, end, note }],
+    }))
+  }, [updatePassage])
+
+  const removeAnnotation = useCallback((passageId, annId) => {
+    updatePassage(passageId, p => ({
+      annotations: (p.annotations ?? []).filter(a => a.id !== annId),
+    }))
+  }, [updatePassage])
+
   // ── Questions ──────────────────────────────────────────────
   const updateQuestions = useCallback((passageId, questions) => {
     updatePassage(passageId, () => ({ questions }))
@@ -269,5 +284,7 @@ export function useStore() {
     addSentence,
     updateNotes,
     updateQuestions,
+    addAnnotation,
+    removeAnnotation,
   }
 }

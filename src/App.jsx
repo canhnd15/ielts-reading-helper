@@ -35,6 +35,8 @@ export default function App() {
   const [speaking, setSpeaking]         = useState(false)
   const [readProgress, setReadProgress] = useState(0)
   const [rightCollapsed, setRightCollapsed] = useState(false)
+  const [noteInput, setNoteInput]        = useState(null) // { start, end, x, y }
+  const [noteView, setNoteView]          = useState(null) // { annId, note, x, y }
   const importRef = useRef(null)
 
   const { currentPassage, state } = store
@@ -75,6 +77,29 @@ export default function App() {
     setSelection(null)
     window.getSelection()?.removeAllRanges()
   }, [selection, currentPassage, store])
+
+  const handleNoteStart = useCallback(() => {
+    if (!selection) return
+    setNoteInput(selection)
+    setSelection(null)
+    window.getSelection()?.removeAllRanges()
+  }, [selection])
+
+  const handleNoteSave = useCallback((note) => {
+    if (!noteInput || !currentPassage) return
+    store.addAnnotation(currentPassage.id, noteInput.start, noteInput.end, note)
+    setNoteInput(null)
+  }, [noteInput, currentPassage, store])
+
+  const handleAnnotationClick = useCallback((annId, note, x, y) => {
+    setNoteView({ annId, note, x, y })
+  }, [])
+
+  const handleRemoveAnnotation = useCallback((annId) => {
+    if (!currentPassage) return
+    store.removeAnnotation(currentPassage.id, annId)
+    setNoteView(null)
+  }, [currentPassage, store])
 
   const handleSaveWord = useCallback(() => {
     if (!popup?.data || !currentPassage) return
@@ -319,6 +344,7 @@ export default function App() {
                     passage={currentPassage}
                     onWordClick={handleWordClick}
                     onTextSelect={handleTextSelect}
+                    onAnnotationClick={handleAnnotationClick}
                   />
                 </div>
 
@@ -376,6 +402,7 @@ export default function App() {
       <SelectionToolbar
         selection={selection}
         onHighlight={handleHighlight}
+        onNote={handleNoteStart}
         onClose={() => { setSelection(null); window.getSelection()?.removeAllRanges() }}
       />
 
@@ -423,6 +450,97 @@ export default function App() {
       {dashboardOpen && (
         <Dashboard state={state} onClose={() => setDashboardOpen(false)} />
       )}
+
+      {/* Note input popup */}
+      {noteInput && (
+        <NoteInputPopup
+          x={noteInput.x}
+          y={noteInput.y}
+          onSave={handleNoteSave}
+          onCancel={() => setNoteInput(null)}
+        />
+      )}
+
+      {/* Note view popup */}
+      {noteView && (
+        <NoteViewPopup
+          note={noteView.note}
+          x={noteView.x}
+          y={noteView.y}
+          onRemove={() => handleRemoveAnnotation(noteView.annId)}
+          onClose={() => setNoteView(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Note input popup ──────────────────────────────────────────
+function NoteInputPopup({ x, y, onSave, onCancel }) {
+  const [text, setText] = useState('')
+  const left = Math.max(8, Math.min(x - 140, window.innerWidth - 296))
+  const top  = y - 8 + window.scrollY
+
+  return (
+    <div
+      className="fixed z-50 w-72 bg-white border border-indigo-200 rounded-xl shadow-2xl p-3"
+      style={{ left, top }}
+    >
+      <p className="text-xs font-semibold text-indigo-600 mb-2">📝 Add note</p>
+      <textarea
+        autoFocus
+        value={text}
+        onChange={e => setText(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter' && e.metaKey && text.trim()) onSave(text.trim()) }}
+        placeholder="Type your note here…"
+        rows={3}
+        className="w-full text-sm px-2.5 py-2 border border-gray-200 rounded-lg resize-none outline-none focus:border-indigo-400 leading-relaxed text-gray-700"
+      />
+      <div className="flex justify-end gap-2 mt-2">
+        <button onClick={onCancel} className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50">
+          Cancel
+        </button>
+        <button
+          onClick={() => text.trim() && onSave(text.trim())}
+          disabled={!text.trim()}
+          className="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-40"
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Note view popup ───────────────────────────────────────────
+function NoteViewPopup({ note, x, y, onRemove, onClose }) {
+  const left = Math.max(8, Math.min(x - 140, window.innerWidth - 296))
+  const top  = y + 8 + window.scrollY
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (!e.target.closest('.note-view-popup')) onClose()
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [onClose])
+
+  return (
+    <div
+      className="note-view-popup fixed z-50 w-72 bg-white border border-indigo-200 rounded-xl shadow-2xl p-3"
+      style={{ left, top }}
+    >
+      <div className="flex items-start justify-between gap-2 mb-1">
+        <p className="text-xs font-semibold text-indigo-600">📝 Note</p>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xs">✕</button>
+      </div>
+      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{note}</p>
+      <button
+        onClick={onRemove}
+        className="mt-3 text-xs text-red-400 hover:text-red-600"
+      >
+        Remove note
+      </button>
     </div>
   )
 }

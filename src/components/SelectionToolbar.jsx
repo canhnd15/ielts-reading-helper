@@ -8,7 +8,7 @@ const COLORS = [
   { name: 'orange', bg: '#fed7aa' },
 ]
 
-export default function SelectionToolbar({ selection, onHighlight, onClose }) {
+export default function SelectionToolbar({ selection, onHighlight, onNote, onClose }) {
   const ref = useRef(null)
 
   // Close on outside click
@@ -42,6 +42,14 @@ export default function SelectionToolbar({ selection, onHighlight, onClose }) {
           style={{ background: c.bg }}
         />
       ))}
+      <div className="w-px h-4 bg-gray-700 mx-1" />
+      <button
+        onClick={onNote}
+        className="text-xs px-2 py-0.5 rounded bg-indigo-600 text-white hover:bg-indigo-500 transition-colors whitespace-nowrap"
+        title="Add a note to this text"
+      >
+        📝 Note
+      </button>
       <button
         onClick={onClose}
         className="ml-1 text-gray-500 hover:text-white text-xs px-1"

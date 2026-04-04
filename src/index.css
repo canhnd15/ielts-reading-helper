@@ -22,3 +22,11 @@ html, body, #root { height: 100%; }
 .hl-blue    { background: #bfdbfe; border-radius: 2px; }
 .hl-pink    { background: #fbcfe8; border-radius: 2px; }
 .hl-orange  { background: #fed7aa; border-radius: 2px; }
+
+.ann-underline {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: #6366f1;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
