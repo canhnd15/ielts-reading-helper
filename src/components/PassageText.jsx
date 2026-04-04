@@ -29,11 +29,11 @@ export default function PassageText({ passage, onWordClick, onTextSelect, onAnno
       return
     }
 
-    // Annotation click (takes priority over word click)
-    const annEl = e.target.closest('[data-ann-id]')
-    if (annEl) {
-      const rect = annEl.getBoundingClientRect()
-      onAnnotationClick?.(annEl.dataset.annId, annEl.dataset.annNote, rect.left + rect.width / 2, rect.bottom)
+    // Annotation icon click → show note
+    const annTrigger = e.target.closest('[data-ann-trigger]')
+    if (annTrigger) {
+      const rect = annTrigger.getBoundingClientRect()
+      onAnnotationClick?.(annTrigger.dataset.annTrigger, annTrigger.dataset.annNote, rect.left + rect.width / 2, rect.bottom)
       return
     }
 
@@ -94,7 +94,11 @@ function buildHtml(text, highlights, annotations) {
     let inner = wrapWords(seg)
 
     if (ann) {
-      inner = `<span class="ann-underline" data-ann-id="${escHtml(ann.id)}" data-ann-note="${escHtml(ann.note)}">${inner}</span>`
+      // Append icon only on the last sub-segment of this annotation range
+      const icon = end === ann.end
+        ? `<sup class="ann-trigger" data-ann-trigger="${escHtml(ann.id)}" data-ann-note="${escHtml(ann.note)}" title="View note">✎</sup>`
+        : ''
+      inner = `<span class="ann-underline">${inner}${icon}</span>`
     }
     if (hl) {
       inner = `<mark class="hl-${hl.color}" data-hl-id="${escHtml(hl.id)}" title="Click a word to translate or remove this highlight">${inner}</mark>`
