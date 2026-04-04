@@ -34,6 +34,7 @@ export default function App() {
   const [dashboardOpen, setDashboardOpen] = useState(false)
   const [speaking, setSpeaking]         = useState(false)
   const [readProgress, setReadProgress] = useState(0)
+  const [rightCollapsed, setRightCollapsed] = useState(false)
   const importRef = useRef(null)
 
   const { currentPassage, state } = store
@@ -346,14 +347,29 @@ export default function App() {
           )}
         </main>
 
-        <RightPanel
-          passage={currentPassage}
-          onUpdateNotes={store.updateNotes}
-          onRemoveVocab={store.removeVocabWord}
-          onRemoveHighlight={handleRemoveHighlight}
-          onAddSentence={store.addSentence}
-          onStartLearning={() => setLearningOpen(true)}
-        />
+        {/* Right panel with collapse toggle */}
+        <div className={`flex flex-col flex-shrink-0 border-l border-gray-200 transition-all duration-200 ${rightCollapsed ? 'w-8' : 'w-80'}`}>
+          {/* Toggle button */}
+          <button
+            onClick={() => setRightCollapsed(v => !v)}
+            className="flex items-center justify-center h-8 flex-shrink-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            title={rightCollapsed ? 'Expand panel' : 'Collapse panel'}
+          >
+            {rightCollapsed ? '‹' : '›'}
+          </button>
+          {!rightCollapsed && (
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <RightPanel
+                passage={currentPassage}
+                onUpdateNotes={store.updateNotes}
+                onRemoveVocab={store.removeVocabWord}
+                onRemoveHighlight={handleRemoveHighlight}
+                onAddSentence={store.addSentence}
+                onStartLearning={() => setLearningOpen(true)}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Overlays */}
