@@ -9,6 +9,7 @@ import RightPanel from './components/RightPanel'
 import AddPassageModal from './components/AddPassageModal'
 import LearningMode from './components/LearningMode'
 import Dashboard from './components/Dashboard'
+import PassageQuestions from './components/PassageQuestions'
 
 const LANGUAGES = [
   { code: 'vi', label: 'Vietnamese' },
@@ -319,6 +320,13 @@ export default function App() {
                     onTextSelect={handleTextSelect}
                   />
                 </div>
+
+                <PassageQuestions
+                  passage={currentPassage}
+                  onAdd={store.addQuestion}
+                  onRemove={store.removeQuestion}
+                  onUpdate={store.updateQuestion}
+                />
               </div>
             </>
           ) : (

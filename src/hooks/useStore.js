@@ -55,6 +55,7 @@ function migrate(raw) {
         ...SR_DEFAULTS,
         ...h,
       })),
+      questions: (p.questions ?? []),
     })),
   }
 }
@@ -129,6 +130,7 @@ export function useStore() {
         notes: '',
         highlights: [],
         vocabulary: [],
+        questions: [],
       }],
       currentPassageId: id,
     }))
@@ -239,6 +241,29 @@ export function useStore() {
     updatePassage(passageId, () => ({ notes }))
   }, [updatePassage])
 
+  // ── Questions ──────────────────────────────────────────────
+  const addQuestion = useCallback((passageId, question, answer) => {
+    updatePassage(passageId, p => ({
+      questions: [...(p.questions ?? []), {
+        id: Date.now().toString(), question: question.trim(), answer: answer.trim(),
+      }],
+    }))
+  }, [updatePassage])
+
+  const removeQuestion = useCallback((passageId, questionId) => {
+    updatePassage(passageId, p => ({
+      questions: p.questions.filter(q => q.id !== questionId),
+    }))
+  }, [updatePassage])
+
+  const updateQuestion = useCallback((passageId, questionId, question, answer) => {
+    updatePassage(passageId, p => ({
+      questions: p.questions.map(q =>
+        q.id === questionId ? { ...q, question: question.trim(), answer: answer.trim() } : q
+      ),
+    }))
+  }, [updatePassage])
+
   return {
     state,
     currentPassage,
@@ -260,5 +285,8 @@ export function useStore() {
     reviewVocab,
     addSentence,
     updateNotes,
+    addQuestion,
+    removeQuestion,
+    updateQuestion,
   }
 }
