@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -36,10 +36,109 @@ function MarkdownPreview({ content, fontSize }) {
   )
 }
 
+const DEFAULT_ANNOTATION_FONT_SIZE = 13
+
+const ANNOTATION_COLORS = [
+  { name: 'black',  value: '#1f2937' },
+  { name: 'yellow', value: '#d97706' },
+  { name: 'blue',   value: '#2563eb' },
+  { name: 'green',  value: '#16a34a' },
+  { name: 'red',    value: '#dc2626' },
+]
+
+function Annotation({ ann, onChange, onBlur, onDelete, onDragStart, onFontSizeChange, onColorChange }) {
+  return (
+    <div
+      className="exam-annotation absolute group"
+      style={{ left: ann.x, top: ann.y, zIndex: 10 }}
+    >
+      {/* Toolbar — floats above, doesn't push textarea down */}
+      <div
+        className="absolute flex items-center gap-0.5 cursor-move select-none opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"
+        onMouseDown={e => onDragStart(ann.id, e)}
+        onClick={e => e.stopPropagation()}
+        style={{ bottom: '100%', left: 0, paddingBottom: 2 }}
+      >
+        <span className="text-gray-300 text-xs mr-1">⠿</span>
+        <button
+          onMouseDown={e => e.preventDefault()}
+          onClick={e => { e.stopPropagation(); onFontSizeChange(ann.id, -1) }}
+          className="text-gray-300 hover:text-gray-600 text-xs px-0.5 leading-none"
+          tabIndex={-1}
+        >A-</button>
+        <button
+          onMouseDown={e => e.preventDefault()}
+          onClick={e => { e.stopPropagation(); onFontSizeChange(ann.id, +1) }}
+          className="text-gray-300 hover:text-gray-600 text-xs px-0.5 leading-none"
+          tabIndex={-1}
+        >A+</button>
+        <span className="w-px h-3 bg-gray-200 mx-0.5" />
+        {ANNOTATION_COLORS.map(c => (
+          <button
+            key={c.name}
+            onMouseDown={e => e.preventDefault()}
+            onClick={e => { e.stopPropagation(); onColorChange(ann.id, c.value) }}
+            tabIndex={-1}
+            title={c.name}
+            style={{ backgroundColor: c.value }}
+            className={`w-3 h-3 rounded-full transition-transform hover:scale-125 ${ann.color === c.value ? 'ring-1 ring-offset-1 ring-gray-400' : ''}`}
+          />
+        ))}
+        <button
+          onMouseDown={e => { e.preventDefault(); onDelete(ann.id) }}
+          className="text-gray-300 hover:text-red-500 text-xs px-0.5 leading-none ml-0.5"
+          tabIndex={-1}
+        >×</button>
+      </div>
+
+      {/* Auto-expanding textarea via CSS grid mirror trick */}
+      <div
+        style={{ display: 'inline-grid', minWidth: 40 }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Hidden mirror to drive width/height */}
+        <span
+          aria-hidden
+          style={{
+            gridArea: '1/1',
+            visibility: 'hidden',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            fontSize: ann.fontSize,
+            lineHeight: 1.5,
+            padding: '1px 2px',
+          }}
+        >{ann.text + ' '}</span>
+
+        <textarea
+          id={`annotation-${ann.id}`}
+          value={ann.text}
+          onChange={e => onChange(ann.id, e.target.value)}
+          onBlur={e => onBlur(ann.id, e.target.value)}
+          className="bg-transparent border-none resize-none outline-none"
+          style={{
+            gridArea: '1/1',
+            fontSize: ann.fontSize,
+            lineHeight: 1.5,
+            padding: '1px 2px',
+            overflow: 'hidden',
+            minWidth: 40,
+            color: ann.color,
+          }}
+          onClick={e => e.stopPropagation()}
+        />
+      </div>
+    </div>
+  )
+}
+
 export default function QuestionsSection({ passage, onUpdate, fontSize, readOnly = false }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
+  const [annotations, setAnnotations] = useState([])
   const textareaRef = useRef(null)
+  const containerRef = useRef(null)
+  const draggingRef = useRef(null)
   const content = passage?.questions ?? ''
 
   function startEdit() {
@@ -57,10 +156,80 @@ export default function QuestionsSection({ passage, onUpdate, fontSize, readOnly
     setDraft('')
   }
 
-  // Focus textarea when edit mode opens
   useEffect(() => {
     if (editing) textareaRef.current?.focus()
   }, [editing])
+
+  // --- drag ---
+  const handleDragMove = useCallback((e) => {
+    const d = draggingRef.current
+    if (!d) return
+    const dx = e.clientX - d.startMouseX
+    const dy = e.clientY - d.startMouseY
+    setAnnotations(prev => prev.map(a =>
+      a.id === d.id ? { ...a, x: d.startAnnX + dx, y: d.startAnnY + dy } : a
+    ))
+  }, [])
+
+  const handleDragEnd = useCallback(() => {
+    draggingRef.current = null
+    window.removeEventListener('mousemove', handleDragMove)
+    window.removeEventListener('mouseup', handleDragEnd)
+  }, [handleDragMove])
+
+  function handleDragStart(id, e) {
+    e.stopPropagation()
+    e.preventDefault()
+    const ann = annotations.find(a => a.id === id)
+    draggingRef.current = {
+      id,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startAnnX: ann.x,
+      startAnnY: ann.y,
+    }
+    window.addEventListener('mousemove', handleDragMove)
+    window.addEventListener('mouseup', handleDragEnd)
+  }
+
+  // Clean up drag listeners on unmount
+  useEffect(() => () => {
+    window.removeEventListener('mousemove', handleDragMove)
+    window.removeEventListener('mouseup', handleDragEnd)
+  }, [handleDragMove, handleDragEnd])
+
+  // --- annotation CRUD ---
+  function handleContainerClick(e) {
+    if (e.target.closest('.exam-annotation')) return
+    const rect = containerRef.current.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    const id = Date.now()
+    setAnnotations(prev => [...prev, { id, x, y, text: '', fontSize: DEFAULT_ANNOTATION_FONT_SIZE, color: ANNOTATION_COLORS[0].value }])
+    requestAnimationFrame(() => document.getElementById(`annotation-${id}`)?.focus())
+  }
+
+  function handleAnnotationBlur(id, text) {
+    if (!text.trim()) setAnnotations(prev => prev.filter(a => a.id !== id))
+  }
+
+  function handleAnnotationChange(id, text) {
+    setAnnotations(prev => prev.map(a => a.id === id ? { ...a, text } : a))
+  }
+
+  function deleteAnnotation(id) {
+    setAnnotations(prev => prev.filter(a => a.id !== id))
+  }
+
+  function changeFontSize(id, delta) {
+    setAnnotations(prev => prev.map(a =>
+      a.id === id ? { ...a, fontSize: Math.min(24, Math.max(10, a.fontSize + delta)) } : a
+    ))
+  }
+
+  function changeColor(id, color) {
+    setAnnotations(prev => prev.map(a => a.id === id ? { ...a, color } : a))
+  }
 
   return (
     <div className="max-w-5xl mx-auto mt-10 mb-10">
@@ -95,9 +264,7 @@ export default function QuestionsSection({ passage, onUpdate, fontSize, readOnly
       </div>
 
       {editing ? (
-        /* Split-pane: editor left, live preview right */
         <div className="flex gap-4 border border-gray-200 rounded-lg overflow-hidden">
-          {/* Editor pane */}
           <div className="flex-1 flex flex-col min-w-0">
             <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
               <span className="text-xs text-gray-400 font-medium">Markdown</span>
@@ -112,11 +279,7 @@ export default function QuestionsSection({ passage, onUpdate, fontSize, readOnly
               style={{ minHeight: '400px' }}
             />
           </div>
-
-          {/* Divider */}
           <div className="w-px bg-gray-200 flex-shrink-0" />
-
-          {/* Preview pane */}
           <div className="flex-1 flex flex-col min-w-0">
             <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-200">
               <span className="text-xs text-gray-400 font-medium">Preview</span>
@@ -129,12 +292,38 @@ export default function QuestionsSection({ passage, onUpdate, fontSize, readOnly
             </div>
           </div>
         </div>
+      ) : readOnly ? (
+        <div className="max-w-2xl">
+          <p className="text-xs text-gray-300 italic mb-2">Click anywhere to add a note</p>
+          <div
+            ref={containerRef}
+            onClick={handleContainerClick}
+            className="relative cursor-text"
+          >
+            {content ? (
+              <MarkdownPreview content={content} fontSize={fontSize} />
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-8">No questions added for this passage.</p>
+            )}
+
+            {annotations.map(ann => (
+              <Annotation
+                key={ann.id}
+                ann={ann}
+                onChange={handleAnnotationChange}
+                onBlur={handleAnnotationBlur}
+                onDelete={deleteAnnotation}
+                onDragStart={handleDragStart}
+                onFontSizeChange={changeFontSize}
+                onColorChange={changeColor}
+              />
+            ))}
+          </div>
+        </div>
       ) : content ? (
         <div className="max-w-2xl">
           <MarkdownPreview content={content} fontSize={fontSize} />
         </div>
-      ) : readOnly ? (
-        <p className="text-sm text-gray-400 text-center py-8">No questions added for this passage.</p>
       ) : (
         <button
           onClick={startEdit}
