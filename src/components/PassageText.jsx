@@ -9,7 +9,7 @@ import { useRef, useCallback, useState, useEffect } from 'react'
  */
 export default function PassageText({
   passage, onWordClick, onTextSelect, onAnnotationClick,
-  onUpdateParagraphNote, showTranslations = true,
+  onUpdateParagraphNote, showTranslations = false,
 }) {
   const containerRef = useRef(null)
 
@@ -77,14 +77,13 @@ export default function PassageText({
               ),
             }}
           />
-          {i < paragraphs.length - 1 && (
-            showTranslations
-              ? <TranslationSlot
-                  value={notes[i] ?? ''}
-                  onChange={(val) => onUpdateParagraphNote?.(passage.id, i, val)}
-                />
-              : <div className="h-5" />
-          )}
+          {showTranslations
+            ? <TranslationSlot
+                value={notes[i] ?? ''}
+                onChange={(val) => onUpdateParagraphNote?.(passage.id, i, val)}
+              />
+            : i < paragraphs.length - 1 && <div className="h-5" />
+          }
         </div>
       ))}
     </div>

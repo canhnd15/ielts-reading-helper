@@ -45,6 +45,7 @@ export default function App() {
   const [noteInput, setNoteInput]        = useState(null) // { start, end, x, y }
   const [noteView, setNoteView]          = useState(null) // { annId, note, x, y }
   const [showQuestions, setShowQuestions]  = useState(false)
+  const [showTranslations, setShowTranslations] = useState(false)
   const [examMode, setExamMode]          = useState(false)
   const [examDuration, setExamDuration]  = useState(20) // minutes
   const [examTimeLeft, setExamTimeLeft]  = useState(null) // seconds
@@ -368,6 +369,23 @@ export default function App() {
 
                   <div className="w-px h-4 bg-gray-200 mx-0.5" />
 
+                  {/* Translation toggle */}
+                  {!examMode && (
+                    <button
+                      onClick={() => setShowTranslations(v => !v)}
+                      className={`text-xs px-2 py-1 rounded border transition-colors ${
+                        showTranslations
+                          ? 'bg-blue-50 border-blue-300 text-blue-600'
+                          : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                      }`}
+                      title={showTranslations ? 'Hide translation buttons' : 'Show translation buttons'}
+                    >
+                      Translation
+                    </button>
+                  )}
+
+                  <div className="w-px h-4 bg-gray-200 mx-0.5" />
+
                   <button
                     onClick={() => setEditModalOpen(true)}
                     className="text-xs px-2 py-1 border border-gray-200 rounded text-gray-500 hover:text-blue-600 hover:bg-gray-50"
@@ -479,6 +497,7 @@ export default function App() {
                       onTextSelect={handleTextSelect}
                       onAnnotationClick={handleAnnotationClick}
                       onUpdateParagraphNote={store.updateParagraphNote}
+                      showTranslations={showTranslations}
                     />
                   </div>
 
