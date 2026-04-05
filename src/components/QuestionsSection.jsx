@@ -132,14 +132,19 @@ function Annotation({ ann, onChange, onBlur, onDelete, onDragStart, onFontSizeCh
   )
 }
 
-export default function QuestionsSection({ passage, onUpdate, fontSize, readOnly = false }) {
+export default function QuestionsSection({ passage, onUpdate, onSaveExamNotes, fontSize, readOnly = false }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
-  const [annotations, setAnnotations] = useState([])
+  const [annotations, setAnnotations] = useState(() => passage?.examNotes ?? [])
   const textareaRef = useRef(null)
   const containerRef = useRef(null)
   const draggingRef = useRef(null)
   const content = passage?.questions ?? ''
+
+  // Sync annotations when passage changes (e.g. user switches passage)
+  useEffect(() => {
+    setAnnotations(passage?.examNotes ?? [])
+  }, [passage?.id])
 
   function startEdit() {
     setDraft(content)
@@ -175,7 +180,12 @@ export default function QuestionsSection({ passage, onUpdate, fontSize, readOnly
     draggingRef.current = null
     window.removeEventListener('mousemove', handleDragMove)
     window.removeEventListener('mouseup', handleDragEnd)
-  }, [handleDragMove])
+    // Save final position after drag ends
+    setAnnotations(prev => {
+      onSaveExamNotes?.(passage?.id, prev)
+      return prev
+    })
+  }, [handleDragMove, onSaveExamNotes, passage?.id])
 
   function handleDragStart(id, e) {
     e.stopPropagation()
@@ -199,36 +209,49 @@ export default function QuestionsSection({ passage, onUpdate, fontSize, readOnly
   }, [handleDragMove, handleDragEnd])
 
   // --- annotation CRUD ---
+  function saveAnnotations(next) {
+    setAnnotations(next)
+    onSaveExamNotes?.(passage.id, next)
+  }
+
   function handleContainerClick(e) {
     if (e.target.closest('.exam-annotation')) return
     const rect = containerRef.current.getBoundingClientRect()
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
     const id = Date.now()
-    setAnnotations(prev => [...prev, { id, x, y, text: '', fontSize: DEFAULT_ANNOTATION_FONT_SIZE, color: ANNOTATION_COLORS[0].value }])
+    const next = [...annotations, { id, x, y, text: '', fontSize: DEFAULT_ANNOTATION_FONT_SIZE, color: ANNOTATION_COLORS[0].value }]
+    saveAnnotations(next)
     requestAnimationFrame(() => document.getElementById(`annotation-${id}`)?.focus())
   }
 
   function handleAnnotationBlur(id, text) {
-    if (!text.trim()) setAnnotations(prev => prev.filter(a => a.id !== id))
+    if (!text.trim()) {
+      const next = annotations.filter(a => a.id !== id)
+      saveAnnotations(next)
+    }
   }
 
   function handleAnnotationChange(id, text) {
-    setAnnotations(prev => prev.map(a => a.id === id ? { ...a, text } : a))
+    const next = annotations.map(a => a.id === id ? { ...a, text } : a)
+    saveAnnotations(next)
   }
 
   function deleteAnnotation(id) {
-    setAnnotations(prev => prev.filter(a => a.id !== id))
+    const next = annotations.filter(a => a.id !== id)
+    saveAnnotations(next)
   }
 
   function changeFontSize(id, delta) {
-    setAnnotations(prev => prev.map(a =>
+    const next = annotations.map(a =>
       a.id === id ? { ...a, fontSize: Math.min(24, Math.max(10, a.fontSize + delta)) } : a
-    ))
+    )
+    saveAnnotations(next)
   }
 
   function changeColor(id, color) {
-    setAnnotations(prev => prev.map(a => a.id === id ? { ...a, color } : a))
+    const next = annotations.map(a => a.id === id ? { ...a, color } : a)
+    saveAnnotations(next)
   }
 
   return (

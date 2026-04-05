@@ -476,6 +476,7 @@ export default function App() {
                     <QuestionsSection
                       passage={currentPassage}
                       onUpdate={store.updateQuestions}
+                      onSaveExamNotes={store.updateExamNotes}
                       fontSize={fontSize}
                       readOnly
                     />

@@ -56,6 +56,7 @@ function migrate(raw) {
         ...h,
       })),
       questions: typeof p.questions === 'string' ? p.questions : '',
+      examNotes: (p.examNotes ?? []),
       annotations: (p.annotations ?? []),
       paragraphNotes: (p.paragraphNotes ?? {}),
     })),
@@ -274,6 +275,11 @@ export function useStore() {
     updatePassage(passageId, () => ({ questions }))
   }, [updatePassage])
 
+  // ── Exam notes ─────────────────────────────────────────────
+  const updateExamNotes = useCallback((passageId, examNotes) => {
+    updatePassage(passageId, () => ({ examNotes }))
+  }, [updatePassage])
+
   return {
     state,
     currentPassage,
@@ -296,6 +302,7 @@ export function useStore() {
     addSentence,
     updateNotes,
     updateQuestions,
+    updateExamNotes,
     updateParagraphNote,
     addAnnotation,
     removeAnnotation,
