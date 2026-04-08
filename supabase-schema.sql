@@ -33,6 +33,7 @@ begin
 end;
 $$ language plpgsql;
 
+
 create trigger user_data_updated_at
   before update on user_data
   for each row
