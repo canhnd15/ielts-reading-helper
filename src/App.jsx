@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useStore } from './hooks/useStore'
+import { useAuth } from './hooks/useAuth'
 import { useTranslation } from './hooks/useTranslation'
 import PassageSidebar from './components/PassageSidebar'
 import PassageText from './components/PassageText'
@@ -10,6 +11,7 @@ import AddPassageModal from './components/AddPassageModal'
 import LearningMode from './components/LearningMode'
 import Dashboard from './components/Dashboard'
 import QuestionsSection from './components/QuestionsSection'
+import AuthModal from './components/AuthModal'
 
 const LANGUAGES = [
   { code: 'vi', label: 'Vietnamese' },
@@ -32,13 +34,15 @@ function formatTimer(seconds) {
 }
 
 export default function App() {
-  const store = useStore()
+  const { user, loading: authLoading, signUp, signIn, signOut, resetPassword } = useAuth()
+  const store = useStore(user?.id ?? null)
   const { popup, translate, closePopup } = useTranslation()
   const [selection, setSelection]       = useState(null)
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [learningOpen, setLearningOpen] = useState(false)
   const [dashboardOpen, setDashboardOpen] = useState(false)
+  const [authModalOpen, setAuthModalOpen] = useState(false)
   const [speaking, setSpeaking]         = useState(false)
   const [readProgress, setReadProgress] = useState(0)
   const [rightCollapsed, setRightCollapsed] = useState(false)
@@ -272,6 +276,37 @@ export default function App() {
             ↑ Import
           </button>
           <input ref={importRef} type="file" accept=".json" onChange={handleImportFile} className="hidden" />
+
+          <div className="w-px h-4 bg-blue-700" />
+
+          {/* Auth */}
+          {authLoading ? (
+            <span className="text-xs text-blue-400">...</span>
+          ) : user ? (
+            <div className="flex items-center gap-2">
+              {store.syncing && (
+                <span className="text-xs text-blue-400 animate-pulse" title="Syncing to cloud">
+                  ↻
+                </span>
+              )}
+              <span className="text-xs text-blue-300 max-w-[120px] truncate" title={user.email}>
+                {user.email}
+              </span>
+              <button
+                onClick={() => { if (confirm('Sign out?')) signOut() }}
+                className="text-xs px-2 py-1 border border-blue-700 text-blue-300 rounded hover:text-white hover:border-blue-500 transition-colors"
+              >
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setAuthModalOpen(true)}
+              className="text-xs px-2.5 py-1 bg-blue-600 text-white rounded hover:bg-blue-500 transition-colors font-medium"
+            >
+              Sign in
+            </button>
+          )}
         </div>
       </header>
 
@@ -629,6 +664,14 @@ export default function App() {
       {dashboardOpen && (
         <Dashboard state={state} onClose={() => setDashboardOpen(false)} />
       )}
+
+      <AuthModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onSignIn={signIn}
+        onSignUp={signUp}
+        onResetPassword={resetPassword}
+      />
 
       {/* Note input popup */}
       {noteInput && (

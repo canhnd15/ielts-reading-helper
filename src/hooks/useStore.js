@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { supabase } from '../lib/supabase'
 
 const STORAGE_KEY = 'ielts_reader_v1'
+const SYNC_DEBOUNCE_MS = 2000
 
 const SR_DEFAULTS = { interval: 1, repetitions: 0, easeFactor: 2.5, dueDate: null }
 
@@ -83,12 +85,73 @@ const defaultState = {
   },
 }
 
-export function useStore() {
-  const [state, setState] = useState(() => loadFromStorage() ?? defaultState)
+// ── Supabase cloud sync helpers ──────────────────────────────
+async function loadFromCloud(userId) {
+  if (!supabase) return null
+  const { data, error } = await supabase
+    .from('user_data')
+    .select('data')
+    .eq('user_id', userId)
+    .single()
+  if (error || !data) return null
+  return migrate(data.data)
+}
 
+async function saveToCloud(userId, state) {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('user_data')
+    .upsert({ user_id: userId, data: state }, { onConflict: 'user_id' })
+  if (error) console.error('Cloud save failed:', error.message)
+}
+
+export function useStore(userId) {
+  const [state, setState] = useState(() => loadFromStorage() ?? defaultState)
+  const [syncing, setSyncing] = useState(false)
+  const [cloudLoaded, setCloudLoaded] = useState(false)
+  const syncTimer = useRef(null)
+  const userIdRef = useRef(userId)
+  userIdRef.current = userId
+
+  // Save to localStorage on every change
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }, [state])
+
+  // Debounced cloud sync when user is logged in
+  useEffect(() => {
+    if (!userId || !cloudLoaded) return
+    if (syncTimer.current) clearTimeout(syncTimer.current)
+    syncTimer.current = setTimeout(() => {
+      setSyncing(true)
+      saveToCloud(userId, state).finally(() => setSyncing(false))
+    }, SYNC_DEBOUNCE_MS)
+    return () => { if (syncTimer.current) clearTimeout(syncTimer.current) }
+  }, [state, userId, cloudLoaded])
+
+  // Load from cloud when user logs in
+  useEffect(() => {
+    if (!userId) {
+      setCloudLoaded(false)
+      return
+    }
+    let cancelled = false
+    setSyncing(true)
+    loadFromCloud(userId).then(cloudData => {
+      if (cancelled) return
+      if (cloudData && cloudData.passages?.length > 0) {
+        setState(cloudData)
+      } else {
+        // First login — push local data to cloud
+        saveToCloud(userId, state)
+      }
+      setCloudLoaded(true)
+      setSyncing(false)
+    }).catch(() => {
+      if (!cancelled) { setCloudLoaded(true); setSyncing(false) }
+    })
+    return () => { cancelled = true }
+  }, [userId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentPassage = state.passages.find(p => p.id === state.currentPassageId) ?? null
 
@@ -283,6 +346,7 @@ export function useStore() {
   return {
     state,
     currentPassage,
+    syncing,
     setTargetLang,
     setFontSize,
     addTopic,
